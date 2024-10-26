@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wordle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Wordle</h1>
+    <div class="top-right-icons">
+      <div id="settings-icon" class="icon">
+        <i class="fas fa-cog"></i>
+      </div>
+      <div id="stats-icon" class="icon">
+        <i class="fas fa-chart-bar"></i>
+      </div>
+    </div>
+    <div id="settings-popup" class="popup">
+      <h2>Settings</h2>
+      <div class="settings-container">
+        <div class="setting">
+          <label for="language-select">Language:</label>
+          <select id="language-select">
+            <option value="de">German</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <h3>Game Mode</h3>
+          <label class="toggle-switch">
+            <input type="checkbox" id="restricted-mode">
+            <span class="slider"></span>
+            <span class="toggle-label">Restricted Mode</span>
+          </label>
+        </div>
+        <div class="setting-group">
+          <h3>Max Guesses</h3>
+          <div class="number-input">
+            <input type="number" id="max-guesses" min="1" max="10" value="6">
+          </div>
+        </div>
+      </div>
+      <button id="save-settings" class="save-button">Save Settings</button>
+    </div>
+    <div id="stats-popup" class="popup">
+      <div id="stats-chart"></div>
+    </div>
+    <div id="game-board"></div>
+    <div id="keyboard"></div>
+    <button id="new-game-btn">New Game</button>
+    <div id="message"></div>
+    <div id="message-display"></div>
+  </div>
+  <script src="wordlist.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
