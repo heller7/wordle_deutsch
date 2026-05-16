@@ -64,24 +64,54 @@ h1 {
 }
 
 #keyboard {
-    display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    gap: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     margin-bottom: 1rem;
+    user-select: none;
+}
+
+.keyboard-row {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
 }
 
 .key {
-    padding: 0.5rem;
+    min-width: 32px;
+    padding: 0.7rem 0.4rem;
     background-color: #e0e0e0;
+    color: #1a1a1a;
     border: none;
     border-radius: 5px;
     font-size: 1rem;
+    font-weight: bold;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.key.key-wide {
+    min-width: 56px;
+    font-size: 0.85rem;
 }
 
 .key:hover {
     background-color: #d0d0d0;
+}
+
+.key.correct {
+    background-color: #6aaa64;
+    color: white;
+}
+
+.key.present {
+    background-color: #c9b458;
+    color: white;
+}
+
+.key.absent {
+    background-color: #787c7e;
+    color: white;
 }
 
 #new-game-btn {
