@@ -1,7 +1,6 @@
 // Global variables for settings and statistics
 let settings = {
-    language: 'en',
-    restrictedMode: false,
+    language: 'de',
     maxGuesses: 6
 };
 
@@ -32,10 +31,10 @@ let activePopup = null;
 // Settings
 
 function updateSettings() {
+    const maxGuesses = parseInt(document.getElementById('max-guesses').value, 10);
     settings = {
         language: document.getElementById('language-select').value,
-        restrictedMode: document.getElementById('restricted-mode').checked,
-        maxGuesses: parseInt(document.getElementById('max-guesses').value, 10)
+        maxGuesses: Number.isFinite(maxGuesses) && maxGuesses > 0 ? maxGuesses : 6
     };
     saveSettings();
     startNewGame();
@@ -48,13 +47,17 @@ function saveSettings() {
 
 function loadSettings() {
     const storedSettings = localStorage.getItem('wordleSettings');
-    settings = storedSettings ? JSON.parse(storedSettings) : { ...settings };
+    if (storedSettings) {
+        settings = { ...settings, ...JSON.parse(storedSettings) };
+    }
+    if (!getWordList(settings.language).length) {
+        settings.language = 'de';
+    }
     applySettingsToUI();
 }
 
 function applySettingsToUI() {
     document.getElementById('language-select').value = settings.language;
-    document.getElementById('restricted-mode').checked = settings.restrictedMode;
     document.getElementById('max-guesses').value = settings.maxGuesses;
 }
 
@@ -73,9 +76,20 @@ function loadStats() {
     if (savedStats) {
         gameStats = JSON.parse(savedStats);
     }
+    ensureDistributionLength();
+}
+
+function ensureDistributionLength() {
+    if (!Array.isArray(gameStats.guessDistribution)) {
+        gameStats.guessDistribution = [];
+    }
+    while (gameStats.guessDistribution.length < settings.maxGuesses) {
+        gameStats.guessDistribution.push(0);
+    }
 }
 
 function updateStats(won, guesses) {
+    ensureDistributionLength();
     gameStats.gamesPlayed++;
     if (won) {
         gameStats.gamesWon++;
@@ -103,19 +117,19 @@ function renderStatsChart() {
     overallStats.innerHTML = `
         <div class="stat-item">
             <span class="stat-value">${gameStats.gamesPlayed}</span>
-            <span class="stat-label">Played</span>
+            <span class="stat-label">Gespielt</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${winPercentage}%</span>
-            <span class="stat-label">Win %</span>
+            <span class="stat-label">Gewinn %</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${gameStats.currentStreak}</span>
-            <span class="stat-label">Current Streak</span>
+            <span class="stat-label">Akt. Serie</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${gameStats.maxStreak}</span>
-            <span class="stat-label">Max Streak</span>
+            <span class="stat-label">Max. Serie</span>
         </div>
     `;
     statsChart.appendChild(overallStats);
@@ -123,23 +137,23 @@ function renderStatsChart() {
     // Guess distribution chart
     const distributionChart = document.createElement('div');
     distributionChart.className = 'distribution-chart';
-    distributionChart.innerHTML = '<h3>Guess Distribution</h3>';
+    distributionChart.innerHTML = '<h3>Verteilung der Versuche</h3>';
     
-    const maxGuesses = Math.max(...gameStats.guessDistribution);
-    gameStats.guessDistribution.forEach((count, index) => {
-        if (index < settings.maxGuesses) {
-            const percentage = maxGuesses > 0 ? (count / maxGuesses) * 100 : 0;
-            distributionChart.innerHTML += `
-                <div class="distribution-row">
-                    <span class="guess-number">${index + 1}</span>
-                    <div class="distribution-bar-container">
-                        <div class="distribution-bar" style="width: ${percentage}%;">
-                            <span class="distribution-count">${count}</span>
-                        </div>
+    ensureDistributionLength();
+    const visible = gameStats.guessDistribution.slice(0, settings.maxGuesses);
+    const maxCount = Math.max(0, ...visible);
+    visible.forEach((count, index) => {
+        const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
+        distributionChart.innerHTML += `
+            <div class="distribution-row">
+                <span class="guess-number">${index + 1}</span>
+                <div class="distribution-bar-container">
+                    <div class="distribution-bar" style="width: ${percentage}%;">
+                        <span class="distribution-count">${count}</span>
                     </div>
                 </div>
-            `;
-        }
+            </div>
+        `;
     });
     statsChart.appendChild(distributionChart);
 }
@@ -185,8 +199,10 @@ function clearGameState() {
 function initGame() {
     loadSettings();
     loadStats();
+    createKeyboard();
     if (loadGameState()) {
         renderGameBoard();
+        updateKeyboard();
         if (gameOver) {
             setTimeout(() => {
                 showPopup('stats-popup');
@@ -200,21 +216,29 @@ function initGame() {
 
 function startNewGame() {
     clearGameState();
+    ensureDistributionLength();
     guesses = Array(settings.maxGuesses).fill('').map(() => Array(5).fill(''));
     currentRow = 0;
     currentTile = 0;
     gameOver = false;
     targetWord = getRandomWord();
     renderGameBoard();
+    resetKeyboardColors();
     saveGameState();
     closePopup();
+}
+
+function resetKeyboardColors() {
+    document.querySelectorAll('.key').forEach(key => {
+        key.classList.remove('correct', 'present', 'absent');
+    });
 }
 
 function getRandomWord() {
     const wordList = getWordList(settings.language);
     if (!wordList || wordList.length === 0) {
         console.error(`No words available for language: ${settings.language}`);
-        showMessage(`No words available for language: ${settings.language}`);
+        showMessage(`Keine Wörter verfügbar`);
         return 'ERROR';
     }
     const randomIndex = Math.floor(Math.random() * wordList.length);
@@ -224,25 +248,26 @@ function getRandomWord() {
 function checkGuess() {
     const guess = getCurrentWord();
     if (!isValidWord(guess, settings.language)) {
-        showMessage(`Not in ${settings.language} word list`);
+        showMessage(`Wort nicht in der Wortliste`);
         return;
     }
     guesses[currentRow] = guess;
     updateTileColors();
+    updateKeyboard();
     if (guess === targetWord) {
-            showMessage("Congratulations! You guessed the word!");
+            showMessage("Glückwunsch! Erraten!");
             updateStats(true, currentRow + 1);
             gameOver = true;
             setTimeout(() => {
                 showPopup('stats-popup');
-            }, 1500); // Show stats popup after 1.5 seconds
+            }, 1500);
         } else if (currentRow === settings.maxGuesses - 1) {
-            showMessage(`Game over! The word was ${targetWord}`);
+            showMessage(`Game Over! Das Wort war ${targetWord}`);
             updateStats(false, settings.maxGuesses);
             gameOver = true;
             setTimeout(() => {
                 showPopup('stats-popup');
-            }, 1500); // Show stats popup after 1.5 seconds
+            }, 1500);
         } else {
             moveToNextRow();
         }
@@ -272,6 +297,7 @@ function createGameBoard() {
 
 function handleKeyPress(event) {
     if (gameOver) return;
+    if (activePopup) return;
 
     const key = event.key.toUpperCase();
 
@@ -279,17 +305,14 @@ function handleKeyPress(event) {
         if (currentTile === 5) {
             checkGuess();
         } else {
-            showMessage("Not enough letters");
+            showMessage("Nicht genug Buchstaben");
         }
     } else if (key === 'BACKSPACE') {
         deleteLetter();
         saveGameState();
-    } else if (/^[A-Z]$/.test(key) && currentTile < 5) {
+    } else if (/^[A-ZÄÖÜ]$/.test(key) && currentTile < 5) {
         addLetter(key);
         saveGameState();
-    }
-    else {
-        showMessage(`Invalid key: ${key}`);
     }
 }
 
@@ -391,19 +414,25 @@ function createKeyboard() {
     const keyboardElement = document.getElementById('keyboard');
     keyboardElement.innerHTML = '';
     const keyboard = [
-        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-        ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Backspace']
+        ['Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I', 'O', 'P', 'Ü'],
+        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ö', 'Ä'],
+        ['Enter', 'Y', 'X', 'C', 'V', 'B', 'N', 'M', 'Backspace']
     ];
     keyboard.forEach(row => {
         const rowElement = document.createElement('div');
         rowElement.classList.add('keyboard-row');
         row.forEach(key => {
             const keyElement = document.createElement('button');
-            keyElement.textContent = key;
+            keyElement.textContent = key === 'Backspace' ? '⌫' : key;
             keyElement.classList.add('key');
-            keyElement.setAttribute('data-key', key);
-            keyElement.addEventListener('click', () => handleKeyPress({ key }));
+            if (key === 'Enter' || key === 'Backspace') {
+                keyElement.classList.add('key-wide');
+            }
+            keyElement.setAttribute('data-key', key.toUpperCase());
+            keyElement.addEventListener('click', (event) => {
+                handleKeyPress({ key });
+                event.currentTarget.blur();
+            });
             rowElement.appendChild(keyElement);
         });
         keyboardElement.appendChild(rowElement);
@@ -447,6 +476,7 @@ function updateKeyboard() {
     const keyElements = document.querySelectorAll('.key');
     keyElements.forEach(keyElement => {
         const letter = keyElement.getAttribute('data-key');
+        keyElement.classList.remove('correct', 'present', 'absent');
         if (correctLetters.has(letter)) {
             keyElement.classList.add('correct');
         } else if (presentLetters.has(letter)) {

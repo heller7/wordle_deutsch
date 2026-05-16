@@ -14,8 +14,9 @@ const wordLists = {
 
 function getWordList(language) {
     return (wordLists[language] || wordLists.de)
-    .map(word => word.toUpperCase())
-    .filter(word => word.length === 5 && /^[A-Z]{5}$/.test(word));
+        .filter(word => word.length === 5)
+        .map(word => word.toUpperCase())
+        .filter(word => word.length === 5 && /^[A-ZÄÖÜ]{5}$/.test(word));
 }
 
 function isValidWord(word, language) {
@@ -26,30 +27,4 @@ function isValidWord(word, language) {
 function getRandomWord(language) {
     const wordList = getWordList(language);
     return wordList[Math.floor(Math.random() * wordList.length)];
-}
-
-async function getRandomWord() {
-    if (wordList.length === 0) {
-        wordList = await loadWords();
-    }
-    if (wordList.length === 0) {
-        console.error('No words available');
-        return 'ERROR';
-    }
-    return wordList[Math.floor(Math.random() * wordList.length)];
-}
-
-
-async function loadWords() {
-    try {
-        const response = await fetch('words_length_5.txt');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const text = await response.text();
-        return text.split('\n').map(word => word.trim().toUpperCase()).filter(word => word.length === 5);
-    } catch (error) {
-        console.error('Error loading words:', error);
-        return [];
-    }
 }
